@@ -55,11 +55,16 @@ class MyUtility
         M5.Lcd.setTextColor(WHITE, BLACK);
     }
 
-    String getMACAddressString(const uint8_t *mac_addr)
+    String getMACAddressString(const uint8_t *mac_addr, bool hide = false)
     {
         char macStr[ESP_NOW_ETH_ALEN * 3];
-        snprintf(macStr, sizeof(macStr), "%02X:%02X:%02X:%02X:%02X:%02X",
+        if(hide){
+            snprintf(macStr, sizeof(macStr), "XX:XX:XX:XX:XX:%02X", mac_addr[5]);
+        }
+        else{
+            snprintf(macStr, sizeof(macStr), "%02X:%02X:%02X:%02X:%02X:%02X",
                 mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
+        }
         return String(macStr);
     }
 

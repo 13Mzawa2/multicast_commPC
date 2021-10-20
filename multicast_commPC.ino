@@ -20,6 +20,7 @@
 #define SLAVE_ID_UNKNOWN 0xff
 #define MSG_THIS_IS_MASTER ((uint8_t)'M')
 #define MSG_THIS_IS_SLAVE  ((uint8_t)'S')
+#define HIDE_MAC_ADDRESS true
 
 BluetoothSerial SerialBT;
 MyUtility util("undefined");
@@ -46,7 +47,11 @@ void addressCopy(const uint8_t* src, uint8_t* dst){
  * @brief draw or update indicator bar
  */
 void drawIndicatorBar(){
-  auto str = String(util.name) + String(" ") + String(WiFi.macAddress());
+  auto str_mac = String(WiFi.macAddress());
+  if(HIDE_MAC_ADDRESS){
+    str_mac.replace(str_mac.substring(0,14),"XX:XX:XX:XX:XX");
+  }
+  auto str = String(util.name) + String(" ") + str_mac;
   drawIndicatorBar(str);
 }
 /**
@@ -76,7 +81,7 @@ void updateIndicatorBar(uint16_t countup){
  */ 
 void printSlaveList(){
   for(int i=0; i<=slave_id_counter; i++){
-    String str = String("Slave ") + String(i) + String(" : ") + util.getMACAddressString(addr_slaves[i]);
+    String str = String("Slave ") + String(i) + String(" : ") + util.getMACAddressString(addr_slaves[i], HIDE_MAC_ADDRESS);
     if(i == slave_id) { str += String(" (ME)"); }
     M5.Lcd.println(str);
   }
@@ -105,7 +110,7 @@ esp_err_t registerPeerInfo(uint8_t *mac_addr){
  * 個別MACアドレス宛の場合は送信できたか否かを判定することができる．
  */
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-  auto macStr = util.getMACAddressString(mac_addr);
+  auto macStr = util.getMACAddressString(mac_addr,HIDE_MAC_ADDRESS);
   // 画面にも描画
   M5.Lcd.fillScreen(BLACK);
   drawIndicatorBar();
@@ -125,7 +130,7 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
  * 受信コールバック関数に受信時の挙動を記述する必要がある．
  */
 void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
-  auto macStr = util.getMACAddressString(mac_addr);
+  auto macStr = util.getMACAddressString(mac_addr,HIDE_MAC_ADDRESS);
           
   // 画面にも描画
   M5.Lcd.fillScreen(BLACK);
@@ -160,7 +165,7 @@ void OnDataSentForRegistration(const uint8_t *mac_addr, esp_now_send_status_t st
  */
 void OnDataRecvForRegistration(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   // MACアドレスをString化
-  auto macAddrString = util.getMACAddressString(mac_addr);
+  auto macAddrString = util.getMACAddressString(mac_addr,HIDE_MAC_ADDRESS);
   if(data_len > 0){
     // Master宣言がブロードキャストされた場合
     if(data[0] == MSG_THIS_IS_MASTER) {
