@@ -22,7 +22,6 @@
 #define MSG_THIS_IS_SLAVE  ((uint8_t)'S')
 
 BluetoothSerial SerialBT;
-String bluetoothName = "M5Stack";
 MyUtility util("undefined");
 uint8_t addr_master[ESP_NOW_ETH_ALEN];
 uint8_t addr_slaves[SLAVE_NUM][ESP_NOW_ETH_ALEN];
@@ -253,15 +252,17 @@ void loopForInitialSettings(){
     if(!this_is_master && !this_is_slave){
       this_is_master = true;
       this_is_slave = false;
-        // M5.Lcd.print("debug \n");
-      //SerialBT.begin(bluetoothName);
       uint8_t data[] = {MSG_THIS_IS_MASTER};
       esp_err_t result = esp_now_send(addr_broadcast, data, sizeof(data));
       if (result == ESP_OK) {
+        // 自身のMACアドレスをMasterとして登録
+        uint8_t macEN[ESP_NOW_ETH_ALEN];
+        esp_read_mac(macEN, ESP_MAC_WIFI_STA);
+        addressCopy(macEN, addr_master);
         util.name = "Master";
         M5.Lcd.fillScreen(BLACK);
         drawIndicatorBar();
-        M5.Lcd.print("This is MASTER! \nBluetooth serial is now open. \n");
+        M5.Lcd.print("This is MASTER! \n");
       }
     }
     // 自分がスレーブと確定している場合，自分のスレーブIDを確定させて知らせる．
@@ -288,6 +289,18 @@ void loopForInitialSettings(){
   updateIndicatorBar(10000);
 }
 
+/**
+ * @brief initialize bluetooth serial (master only)
+ */
+void initBluetooth(){
+  // MACアドレス下2桁を使用して固有のデバイスID名を作成
+  char bluetoothName[13];
+  snprintf(bluetoothName, sizeof(bluetoothName), "M5Stack-%02X%02X", addr_master[4], addr_master[5]);
+  // Bluetooth開始
+  if(SerialBT.begin(bluetoothName)) {
+    M5.Lcd.println("Bluetooth serial is now open.");
+  }
+}
 
 void setup() {
   M5.begin();
@@ -298,7 +311,9 @@ void setup() {
   // 初期化
   M5.Lcd.print("ESP-NOW Test\n");
   initESPNOW();
-
+  if(this_is_master){
+    initBluetooth();
+  }
   M5.Lcd.println("READY");
 }
 
@@ -315,6 +330,27 @@ void loop() {
   }
   if ( M5.BtnC.wasPressed() ) {
       esp_now_send(addr_slaves[2], data, sizeof(data));
+  }
+  // Bluetooth通信
+  if(SerialBT.available()) {
+    char c = SerialBT.read();
+    uint8_t data[] = "got a message";
+    switch(c){
+      case '0':
+        M5.Lcd.fillScreen(BLACK);
+        drawIndicatorBar();
+        M5.Lcd.println("got a message");
+        break;
+      case '1':
+        esp_now_send(addr_slaves[0], data, sizeof(data));
+        break;
+      case '2':
+        esp_now_send(addr_slaves[1], data, sizeof(data));
+        break;
+      case '3':
+        esp_now_send(addr_slaves[2], data, sizeof(data));
+        break;
+    }
   }
   delay(1);
   updateIndicatorBar(10000);
